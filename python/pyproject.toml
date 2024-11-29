@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "jsonprocess"
+version = "0.1.0"
+description = ""
+authors = ["Janos Hardi <janos-karoly.hardi@telekom.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+psutil = "^6.1.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
