@@ -7,18 +7,12 @@ Default Json parser.
 3. dump json
 
 ```
-go run main.go
-```
-
-benchmark:
-
-```
-go test -bench=. -benchmem
+cargo run
 ```
 
 Compile and run
 
 ```
-go build main.go
-./main
+cargo build --release
+./target/release/rust
 ```
