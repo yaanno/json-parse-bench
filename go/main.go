@@ -1,63 +1,184 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+	"runtime"
+	"runtime/pprof"
+	"sync"
+	"time"
 )
 
 type SimplifiedData struct {
-	ID string `json:"id"`
+    ID       int       `json:"id"`
+    Name     string    `json:"name"`
+    Value    float64   `json:"value"`
+    Tags     []string  `json:"tags"`
+    Metadata Metadata `json:"metadata"`
 }
 
-func processJSON(filePath string) ([]SimplifiedData, error) {
+type Metadata struct {
+    Created  string `json:"created"`
+    Priority int    `json:"priority"`
+    Active   bool   `json:"active"`
+}
+
+// ProcessJSONStream processes a large JSON file with minimal memory overhead
+// Implements sequential processing
+func ProcessJSONStream(filePath string, processFn func(SimplifiedData) error) (int, error) {
+	// Open the file
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return 0, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
 
-	reader := bufio.NewReader(file)
-	decoder := json.NewDecoder(reader)
+	// Create a decoder
+	decoder := json.NewDecoder(file)
 
+	// Ensure we're starting with an array
 	token, err := decoder.Token()
 	if err != nil {
-		log.Fatalln("Error reading opening token: ", err)
+		return 0, fmt.Errorf("failed to read opening token: %w", err)
 	}
 	if delim, ok := token.(json.Delim); !ok || delim != '[' {
-		log.Fatalln("Expeceted start of JSON array")
+		return 0, fmt.Errorf("expected start of JSON array, got %v", token)
 	}
 
-	var out []SimplifiedData
+	// Counter for processed items
+	count := 0
 
+	// Process each item
 	for decoder.More() {
-		var simplified SimplifiedData
-		err = decoder.Decode(&simplified)
-		if err != nil {
-			return nil, err
+		var item SimplifiedData
+		if err := decoder.Decode(&item); err != nil {
+			return count, fmt.Errorf("error decoding item at position %d: %w", count, err)
 		}
-		out = append(out, simplified)
+
+		// Optional processing of each item
+		if err := processFn(item); err != nil {
+			return count, err
+		}
+
+		count++
 	}
 
-	// Read the closing bracket of the JSON array
-	token, err = decoder.Token()
+	return count, nil
+}
+
+// ParallelProcessJSONStream processes a large JSON file using parallel processing
+// Implements parallel processing using goroutines
+func ParallelProcessJSONStream(filePath string, workerCount int, processFn func(SimplifiedData) error) (int, error) {
+	file, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalln("Error reading closing token:", err)
+		return 0, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+
+	// Ensure we're starting with an array
+	token, err := decoder.Token()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read opening token: %w", err)
+	}
+	if delim, ok := token.(json.Delim); !ok || delim != '[' {
+		return 0, fmt.Errorf("expected start of JSON array, got %v", token)
 	}
 
-	// Check if the closing token is the end of the array
-	if delim, ok := token.(json.Delim); !ok || delim != ']' {
-		log.Fatalln("Expected end of JSON array")
+	// Buffered channel for items
+	itemChan := make(chan SimplifiedData, 100)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	count := 0
+	errChan := make(chan error, workerCount)
+
+	// Start worker goroutines
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for item := range itemChan {
+				mu.Lock()
+				count++
+				mu.Unlock()
+
+				if err := processFn(item); err != nil {
+					errChan <- err
+					return
+				}
+			}
+		}()
 	}
 
-	return out, nil
+	// Start a goroutine to read JSON items
+	go func() {
+		defer close(itemChan)
+		defer close(errChan)
+
+		for decoder.More() {
+			var item SimplifiedData
+			if err := decoder.Decode(&item); err != nil {
+				errChan <- err
+				return
+			}
+			itemChan <- item
+		}
+	}()
+
+	// Wait for all workers to finish
+	wg.Wait()
+
+	// Check for any errors
+	select {
+	case err := <-errChan:
+		return count, err
+	default:
+		return count, nil
+	}
 }
 
 func main() {
-	out, err := processJSON("large-file.json")
+	// Optional: CPU profiling
+	cpuProfile, err := os.Create("cpu_profile.prof")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(len(out))
+	pprof.StartCPUProfile(cpuProfile)
+	defer pprof.StopCPUProfile()
+
+	// Memory profiling
+	memProfile, err := os.Create("mem_profile.prof")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer memProfile.Close()
+
+	// Start timing
+	start := time.Now()
+
+	// Process file
+	count, err := ProcessJSONStream("large-file.json", func(item SimplifiedData) error {
+		// Optional per-item processing
+		return nil
+	})
+
+	// Parallel processing alternative
+	// count, err := ParallelProcessJSONStream("large-file.json", runtime.NumCPU())
+
+	if err != nil {
+		log.Fatalf("Error processing file: %v", err)
+	}
+
+	// Log performance metrics
+	duration := time.Since(start)
+	log.Printf("Processed %d items in %v", count, duration)
+
+	// Write memory profile
+	runtime.GC() // get up-to-date statistics
+	if err := pprof.WriteHeapProfile(memProfile); err != nil {
+		log.Fatal(err)
+	}
 }

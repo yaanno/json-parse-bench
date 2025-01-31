@@ -1,6 +1,7 @@
-import { promises as fs } from "fs";
+import * as fs from "fs";
 import { loadavg } from "os";
 import { performance } from "perf_hooks";
+import JSONStream from "jsonstream";
 
 const logSystemMetrics = () => {
   const memoryUsage = process.memoryUsage();
@@ -18,30 +19,39 @@ const logSystemMetrics = () => {
   console.log("Load Average:", loadAverage);
 };
 
-const processFile = async () => {
-  try {
-    const data = await fs.readFile("large-file.json", "utf8");
-    const json = JSON.parse(data);
-    const out = json.map((item) => ({ id: item.id }));
-    console.log(out.length);
-  } catch (err) {
-    console.error(err);
-  }
+const processFile = () => {
+  const stream = fs.createReadStream('large-file.json', { encoding: 'utf8' });
+  const parser = JSONStream.parse('*'); // Adjust the path as needed
+
+  stream.pipe(parser);
+
+  let count = 0;
+  parser.on('data', (item) => {
+    // Process each item
+    // console.log(item.id);
+    count++;
+  });
+
+  parser.on('end', () => {
+    console.log('Finished processing file');
+    console.log(`Processed ${count} items`);
+  });
+
+  parser.on('error', (err) => {
+    console.error('Error parsing JSON:', err);
+  });
 };
 
 const init = async () => {
   const start = performance.now();
   logSystemMetrics();
-  await processFile().then(() => {
-    const end = performance.now();
-    console.log(`Time taken: ${end - start} milliseconds`);
-    logSystemMetrics();
-  });
+  processFile();
+  const end = performance.now();
+  console.log(`Time taken: ${end - start} milliseconds`);
+  logSystemMetrics();
+  process.exit();
 };
 
 (async () => {
-  // for (let index = 0; index < 10; index++) {
-  //   console.log(index);
   await init();
-  // }
 })();

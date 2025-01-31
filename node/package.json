@@ -8,5 +8,11 @@
   },
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "jsonstream": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/jsonstream": "^0.8.33"
+  }
 }

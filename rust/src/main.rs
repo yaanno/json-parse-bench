@@ -2,24 +2,16 @@ use serde_json::Value;
 use std::fs::File;
 use std::io::BufReader;
 use std::time::Instant;
-use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+use std::mem;
+use sys_info;
+
+fn get_memory_usage() -> Result<usize, sys_info::Error> {
+    let mem_info = sys_info::mem_info()?;
+    Ok((mem_info.total - mem_info.free) as usize)
+}
 
 fn process_large_json(file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-    // Start benchmarking
-    let mut system = System::new_all();
-    system.refresh_all();
-    std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-    // Refresh CPU usage to get actual value.
-    system.refresh_processes_specifics(
-        ProcessesToUpdate::All,
-        true,
-        ProcessRefreshKind::new().with_cpu(),
-    );
-    let process = system
-        .process(Pid::from_u32(std::process::id()))
-        .ok_or("Process not found")?;
-    let start_memory = process.memory();
-    let start_cpu = process.cpu_usage();
+    let start_memory = get_memory_usage()?;
     let start_time = Instant::now();
 
     let file = File::open(file_path)?;
@@ -35,20 +27,23 @@ fn process_large_json(file_path: &str) -> Result<(), Box<dyn std::error::Error>>
         }
     }
 
-    // End benchmarking
-    let end_memory = process.memory();
-    let end_cpu = process.cpu_usage();
-    let elapsed_time = start_time.elapsed();
-
-    let memory_usage = (end_memory - start_memory) as f64 / 1024.0; // Convert to MB
-    let cpu_usage = end_cpu - start_cpu;
+    let end_time = start_time.elapsed();
+    let end_memory = get_memory_usage()?;
+    
+    let memory_usage = (end_memory - start_memory) as f64 / 1024.0 / 1024.0; // Convert to MB
+    let output_size = out.len();
+    let output_memory = mem::size_of_val(&out) as f64 / 1024.0 / 1024.0; // Memory of output vector
 
     println!(
-        "Output length: {}, Memory usage: {:.2} MB, CPU usage: {:.2}%, Elapsed time: {:.2?} seconds",
-        out.len(),
+        "Benchmark Results:\n\
+        - Total Items Processed: {}\n\
+        - Memory Usage: {:.2} MB\n\
+        - Output Vector Memory: {:.2} MB\n\
+        - Elapsed Time: {:.4} seconds",
+        output_size,
         memory_usage,
-        cpu_usage,
-        elapsed_time
+        output_memory,
+        end_time.as_secs_f64()
     );
 
     Ok(())
