@@ -31,9 +31,9 @@ This document provides a comprehensive analysis of JSON parsing performance acro
 ## Performance Results
 
 ### Node.js Implementation
-- **Execution Time**: 1.62 milliseconds
+- **Execution Time**: 1.80 milliseconds
 - **Memory Usage**: 
-  - RSS: 39.47-39.91 MB
+  - RSS: 39.64-39.98 MB
   - Heap Total: 4.80 MB
   - Heap Used: 4.51-4.56 MB
 - **Pros**: Extremely fast execution
@@ -41,33 +41,33 @@ This document provides a comprehensive analysis of JSON parsing performance acro
 
 ### Python Implementation
 #### Standard Version
-- **Execution Time**: 0.203 seconds
-- **Memory Usage**: 27.70 MB
-- **CPU Usage**: 99.6%
+- **Execution Time**: 0.195 seconds
+- **Memory Usage**: 27.50 MB
+- **CPU Usage**: 100%
 
 #### Optimized Version
-- **Execution Time**: 0.240 seconds
-- **Memory Usage**: 2.63 MB
-- **Peak Memory**: 16.69 MB
+- **Execution Time**: 0.237 seconds
+- **Memory Usage**: 2.84 MB
+- **Peak Memory**: 16.61 MB
 - **Notable**: Significant memory usage reduction
 
 ### Go Implementation
 #### Standard Version
-- **Execution Time**: 201.21 ms
+- **Execution Time**: 0.198 seconds
 - **Pros**: Consistent performance
 
 #### Parallel Version
-- **Execution Time**: 201.62 ms
+- **Execution Time**: 0.198 seconds
 - **Interesting Note**: Minimal performance difference from standard version
 
 ### Rust Implementation
 #### Standard Version
-- **Execution Time**: 0.112 seconds
-- **Memory Usage**: 0.21 MB
+- **Execution Time**: 0.121 seconds
+- **Memory Usage**: 0.09 MB
 
 #### Parallel Version
-- **Execution Time**: 0.105 seconds
-- **Memory Usage**: 0.23 MB
+- **Execution Time**: 0.106 seconds
+- **Memory Usage**: 0.22 MB
 - **Pros**: Low memory footprint, slight performance improvement in parallel version
 
 ## Performance Ranking

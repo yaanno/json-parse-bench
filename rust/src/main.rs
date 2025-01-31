@@ -4,6 +4,7 @@ use std::io::BufReader;
 use std::time::Instant;
 use std::mem;
 use sys_info;
+use rayon::prelude::*;
 
 fn get_memory_usage() -> Result<usize, sys_info::Error> {
     let mem_info = sys_info::mem_info()?;
@@ -20,11 +21,12 @@ fn process_large_json(file_path: &str) -> Result<(), Box<dyn std::error::Error>>
     let mut out = Vec::new();
 
     if let Some(items) = json.as_array() {
-        for item in items {
-            if let Some(id) = item.get("id") {
-                out.push(serde_json::json!({ "id": id }));
-            }
-        }
+        out = items
+            .par_iter()  // Parallel iterator
+            .filter_map(|item| {
+                item.get("id").map(|id| serde_json::json!({ "id": id }))
+            })
+            .collect();
     }
 
     let end_time = start_time.elapsed();
