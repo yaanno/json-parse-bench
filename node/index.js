@@ -26,15 +26,18 @@ const processFile = () => {
   stream.pipe(parser);
 
   let count = 0;
+  const out = [];
   parser.on('data', (item) => {
     // Process each item
     // console.log(item.id);
     count++;
+    out.push(item);
   });
 
   parser.on('end', () => {
     console.log('Finished processing file');
     console.log(`Processed ${count} items`);
+    console.log(`Processed output: ${out.length} items`);
   });
 
   parser.on('error', (err) => {

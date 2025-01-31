@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -141,6 +142,10 @@ func ParallelProcessJSONStream(filePath string, workerCount int, processFn func(
 }
 
 func main() {
+	// Command-line flags
+	parallelFlag := flag.Bool("parallel", false, "Enable parallel processing")
+	flag.Parse()
+
 	// Optional: CPU profiling
 	cpuProfile, err := os.Create("cpu_profile.prof")
 	if err != nil {
@@ -159,17 +164,24 @@ func main() {
 	// Start timing
 	start := time.Now()
 
-	// Process file
-	count, err := ProcessJSONStream("large-file.json", func(item SimplifiedData) error {
-		// Optional per-item processing
-		return nil
-	})
+	var count int
+	var processingErr error
 
-	// Parallel processing alternative
-	// count, err := ParallelProcessJSONStream("large-file.json", runtime.NumCPU())
+	// Choose processing method based on flag
+	if *parallelFlag {
+		count, processingErr = ParallelProcessJSONStream("large-file.json", runtime.NumCPU(), func(item SimplifiedData) error {
+			// Optional per-item processing
+			return nil
+		})
+	} else {
+		count, processingErr = ProcessJSONStream("large-file.json", func(item SimplifiedData) error {
+			// Optional per-item processing
+			return nil
+		})
+	}
 
-	if err != nil {
-		log.Fatalf("Error processing file: %v", err)
+	if processingErr != nil {
+		log.Fatalf("Error processing file: %v", processingErr)
 	}
 
 	// Log performance metrics

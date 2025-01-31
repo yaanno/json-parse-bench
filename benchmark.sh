@@ -30,11 +30,31 @@ time python3 python/main_optimized.py large-file.json
 
 # Go Standard Benchmark
 echo -e "\n=== Go Standard Benchmark ==="
-time go/json-parser
+cd go
+./json-parser
+echo "=== Go Standard Memory Profile ==="
+go tool pprof -text mem_profile.prof | awk '
+    /^TYPE/ {next}
+    /^Dropped/ {next}
+    /^#/ {next}
+    /^$/ {next}
+    {print $1, $2, $3, $4}
+' | head -n 10
+cd ..
 
 # Go Parallel Benchmark
 echo -e "\n=== Go Parallel Benchmark ==="
-time go/json-parser -parallel
+cd go
+./json-parser -parallel
+echo "=== Go Parallel Memory Profile ==="
+go tool pprof -text mem_profile.prof | awk '
+    /^TYPE/ {next}
+    /^Dropped/ {next}
+    /^#/ {next}
+    /^$/ {next}
+    {print $1, $2, $3, $4}
+' | head -n 10
+cd ..
 
 # Rust Standard Benchmark
 echo -e "\n=== Rust Standard Benchmark ==="
